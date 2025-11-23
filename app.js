@@ -1274,6 +1274,8 @@ function useInsightsChartDimensions(styleRef, minWidth = 200) {
   return { chartWidth, chartHeight };
 }
 
+const Y_AXIS_SEGMENTS = 5;
+
 function WeeklyChart({ data, loading }) {
   const chartData = useMemo(() => (Array.isArray(data) && data.length ? data : MOCK_WEEKLY), [data]);
   const hasData = chartData.some((item) => (item?.readings || 0) > 0);
@@ -1340,7 +1342,8 @@ function WeeklyChart({ data, loading }) {
       withInnerLines
       withHorizontalLines
       withVerticalLines={false}
-      segments={4}
+      segments={Y_AXIS_SEGMENTS}
+      yAxisInterval={1}
       showBarTops={false}
       showValuesOnTopOfBars={false}
       yAxisSuffix=""
@@ -1431,7 +1434,8 @@ function MonthlyChart({ data, loading }) {
       withInnerLines
       withHorizontalLines
       withVerticalLines={false}
-      segments={5}
+      segments={Y_AXIS_SEGMENTS}
+      yAxisInterval={1}
       showBarTops={false}
       showValuesOnTopOfBars={false}
       yAxisSuffix=""
@@ -1544,7 +1548,8 @@ function TopCastsChart({ data, loading }) {
       withInnerLines
       withHorizontalLines
       withVerticalLines={false}
-      segments={4}
+      segments={Y_AXIS_SEGMENTS}
+      yAxisInterval={1}
       showBarTops={false}
       showValuesOnTopOfBars={false}
       yAxisSuffix=""
