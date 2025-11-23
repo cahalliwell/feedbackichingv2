@@ -1274,6 +1274,8 @@ function useInsightsChartDimensions(styleRef, minWidth = 200) {
   return { chartWidth, chartHeight };
 }
 
+const Y_AXIS_SEGMENTS = 5;
+
 function WeeklyChart({ data, loading }) {
   const chartData = useMemo(() => (Array.isArray(data) && data.length ? data : MOCK_WEEKLY), [data]);
   const hasData = chartData.some((item) => (item?.readings || 0) > 0);
@@ -1340,7 +1342,8 @@ function WeeklyChart({ data, loading }) {
       withInnerLines
       withHorizontalLines
       withVerticalLines={false}
-      segments={4}
+      segments={Y_AXIS_SEGMENTS}
+      yAxisInterval={1}
       showBarTops={false}
       showValuesOnTopOfBars={false}
       yAxisSuffix=""
@@ -1431,7 +1434,8 @@ function MonthlyChart({ data, loading }) {
       withInnerLines
       withHorizontalLines
       withVerticalLines={false}
-      segments={5}
+      segments={Y_AXIS_SEGMENTS}
+      yAxisInterval={1}
       showBarTops={false}
       showValuesOnTopOfBars={false}
       yAxisSuffix=""
@@ -1544,7 +1548,8 @@ function TopCastsChart({ data, loading }) {
       withInnerLines
       withHorizontalLines
       withVerticalLines={false}
-      segments={4}
+      segments={Y_AXIS_SEGMENTS}
+      yAxisInterval={1}
       showBarTops={false}
       showValuesOnTopOfBars={false}
       yAxisSuffix=""
@@ -2803,6 +2808,17 @@ const loginStyles = StyleSheet.create({
     fontSize: 16,
     color: palette.gold,
   },
+  forgotRow: {
+    marginTop: theme.space(1.5),
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  forgotText: {
+    marginLeft: theme.space(0.5),
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: palette.goldDeep,
+  },
 });
 
 const loginGradientColors = [
@@ -2816,6 +2832,7 @@ function LoginScreen() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [mode, setMode] = useState(null);
+  const navigation = useNavigation();
 
   const handleAuth = async (type) => {
     if (!email.trim() || !password) {
@@ -2903,6 +2920,14 @@ function LoginScreen() {
                 Use the credentials associated with your Supabase profile.
               </Text>
 
+              <Pressable
+                style={loginStyles.forgotRow}
+                onPress={() => navigation.navigate("ForgotPassword")}
+              >
+                <Ionicons name="key-outline" size={18} color={palette.goldDeep} />
+                <Text style={loginStyles.forgotText}>Forgot your password?</Text>
+              </Pressable>
+
               <View style={loginStyles.buttonRow}>
                 <Pressable
                   style={[loginStyles.button, loginStyles.buttonPrimary]}
@@ -2924,6 +2949,222 @@ function LoginScreen() {
                     <ActivityIndicator color={palette.gold} />
                   ) : (
                     <Text style={loginStyles.buttonTextSecondary}>Sign Up</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
+    </LinearGradient>
+  );
+}
+
+function ForgotPasswordScreen({ navigation }) {
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleReset = async () => {
+    if (!email.trim()) {
+      Alert.alert("Email required", "Please enter the email for your account.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: "ichinginsightsai://auth/callback",
+      });
+      if (error) throw error;
+      Alert.alert(
+        "Reset email sent",
+        "Check your inbox for a link to reset your password.",
+        [
+          {
+            text: "OK",
+            onPress: () => navigation.goBack(),
+          },
+        ]
+      );
+    } catch (error) {
+      Alert.alert("Reset failed", error?.message || "Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <LinearGradient
+      colors={loginGradientColors}
+      style={loginStyles.gradient}
+      start={{ x: 0.2, y: 0 }}
+      end={{ x: 0.8, y: 1 }}
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+      >
+        <SafeAreaView style={{ flex: 1 }}>
+          <ScrollView
+            contentContainerStyle={loginStyles.container}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={loginStyles.card}>
+              <View style={loginStyles.titleRow}>
+                <Ionicons name="mail-unread-outline" size={28} color={palette.goldDeep} />
+                <Text style={loginStyles.title}>Forgot Password</Text>
+              </View>
+              <Text style={loginStyles.subtitle}>
+                Enter your account email and we'll send you a secure reset link.
+              </Text>
+
+              <Text style={loginStyles.label}>Email</Text>
+              <TextInput
+                value={email}
+                onChangeText={setEmail}
+                placeholder="you@example.com"
+                placeholderTextColor={palette.inkMuted}
+                autoCapitalize="none"
+                autoComplete="email"
+                keyboardType="email-address"
+                textContentType="emailAddress"
+                style={loginStyles.input}
+              />
+
+              <View style={loginStyles.buttonRow}>
+                <Pressable
+                  style={[loginStyles.button, loginStyles.buttonSecondary]}
+                  onPress={() => navigation.goBack()}
+                  disabled={submitting}
+                >
+                  <Text style={loginStyles.buttonTextSecondary}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[loginStyles.button, loginStyles.buttonPrimary]}
+                  onPress={handleReset}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color={palette.white} />
+                  ) : (
+                    <Text style={loginStyles.buttonTextPrimary}>Send Link</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
+    </LinearGradient>
+  );
+}
+
+function ResetPasswordScreen({ navigation }) {
+  const { completePasswordReset, signOut } = useAuth();
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleFinish = async () => {
+    if (!password || !confirm) {
+      Alert.alert("Missing information", "Please enter and confirm your new password.");
+      return;
+    }
+    if (password !== confirm) {
+      Alert.alert("Mismatch", "Passwords do not match.");
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert("Too short", "Password must be at least 6 characters long.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      Alert.alert("Password updated", "You can now sign in with your new password.", [
+        {
+          text: "Back to Login",
+          onPress: async () => {
+            await signOut();
+            completePasswordReset();
+            navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+          },
+        },
+      ]);
+    } catch (error) {
+      Alert.alert("Update failed", error?.message || "Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <LinearGradient
+      colors={loginGradientColors}
+      style={loginStyles.gradient}
+      start={{ x: 0.2, y: 0 }}
+      end={{ x: 0.8, y: 1 }}
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+      >
+        <SafeAreaView style={{ flex: 1 }}>
+          <ScrollView
+            contentContainerStyle={loginStyles.container}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={loginStyles.card}>
+              <View style={loginStyles.titleRow}>
+                <Ionicons name="lock-open-outline" size={28} color={palette.goldDeep} />
+                <Text style={loginStyles.title}>Set New Password</Text>
+              </View>
+              <Text style={loginStyles.subtitle}>
+                Enter a new password to secure your account.
+              </Text>
+
+              <Text style={loginStyles.label}>New Password</Text>
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Enter a secure password"
+                placeholderTextColor={palette.inkMuted}
+                secureTextEntry
+                textContentType="newPassword"
+                style={loginStyles.input}
+              />
+
+              <Text style={loginStyles.label}>Confirm Password</Text>
+              <TextInput
+                value={confirm}
+                onChangeText={setConfirm}
+                placeholder="Re-enter your new password"
+                placeholderTextColor={palette.inkMuted}
+                secureTextEntry
+                textContentType="password"
+                style={loginStyles.input}
+              />
+
+              <View style={loginStyles.buttonRow}>
+                <Pressable
+                  style={[loginStyles.button, loginStyles.buttonSecondary]}
+                  onPress={() => navigation.goBack()}
+                  disabled={submitting}
+                >
+                  <Text style={loginStyles.buttonTextSecondary}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[loginStyles.button, loginStyles.buttonPrimary]}
+                  onPress={handleFinish}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color={palette.white} />
+                  ) : (
+                    <Text style={loginStyles.buttonTextPrimary}>Save Password</Text>
                   )}
                 </Pressable>
               </View>
@@ -6094,7 +6335,9 @@ function SettingsScreen({ navigation }) {
             </Pressable>
             <View style={stylesSettings.rowDivider} />
             <Pressable
-              onPress={() => handleOpenLink("https://aichinginsights.com/privacy")}
+              onPress={() =>
+                handleOpenLink("https://sites.google.com/view/ichinginsightspp/home")
+              }
               style={stylesSettings.row}
             >
               <Text style={stylesSettings.rowLabel}>Privacy Policy</Text>
@@ -6102,7 +6345,9 @@ function SettingsScreen({ navigation }) {
             </Pressable>
             <View style={stylesSettings.rowDivider} />
             <Pressable
-              onPress={() => handleOpenLink("https://aichinginsights.com/terms")}
+              onPress={() =>
+                handleOpenLink("https://sites.google.com/view/ai-ching-insightstc/home")
+              }
               style={stylesSettings.row}
             >
               <Text style={stylesSettings.rowLabel}>Terms and Conditions</Text>
@@ -6220,6 +6465,8 @@ function AuthStackScreen() {
   return (
     <AuthStack.Navigator screenOptions={{ headerShown: false }}>
       <AuthStack.Screen name="Login" component={LoginScreen} />
+      <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <AuthStack.Screen name="ResetPassword" component={ResetPasswordScreen} />
     </AuthStack.Navigator>
   );
 }
@@ -6297,6 +6544,61 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [pendingPasswordReset, setPendingPasswordReset] = useState(false);
+  const navigationRef = useRef(null);
+
+  const parseCodeFromUrl = useCallback((url) => {
+    if (!url) return null;
+    try {
+      const parsed = new URL(url);
+      return parsed.searchParams.get("code");
+    } catch (error) {
+      const match = url.match(/[?&]code=([^&]+)/);
+      return match?.[1] ? decodeURIComponent(match[1]) : null;
+    }
+  }, []);
+
+  const handlePasswordResetLink = useCallback(
+    async (url) => {
+      if (!url || !url.startsWith("ichinginsightsai://auth/callback")) return;
+      const code = parseCodeFromUrl(url);
+      if (!code) return;
+      try {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) throw error;
+        setPendingPasswordReset(true);
+        navigationRef.current?.navigate("ResetPassword");
+      } catch (error) {
+        Alert.alert("Password reset failed", error?.message || "Unable to complete reset.");
+      }
+    },
+    [parseCodeFromUrl]
+  );
+
+  useEffect(() => {
+    const processInitialUrl = async () => {
+      const initialUrl = await Linking.getInitialURL();
+      if (initialUrl) {
+        handlePasswordResetLink(initialUrl);
+      }
+    };
+
+    processInitialUrl();
+
+    const subscription = Linking.addEventListener("url", (event) => {
+      handlePasswordResetLink(event.url);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [handlePasswordResetLink]);
+
+  useEffect(() => {
+    if (pendingPasswordReset) {
+      navigationRef.current?.navigate("ResetPassword");
+    }
+  }, [pendingPasswordReset]);
 
   const fetchProfile = useCallback(async () => {
     const userId = session?.user?.id;
@@ -6341,9 +6643,13 @@ export default function App() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       setAuthReady(true);
+      if (event === "PASSWORD_RECOVERY") {
+        setPendingPasswordReset(true);
+        navigationRef.current?.navigate("ResetPassword");
+      }
     });
 
     return () => {
@@ -6359,6 +6665,10 @@ export default function App() {
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
+  }, []);
+
+  const completePasswordReset = useCallback(() => {
+    setPendingPasswordReset(false);
   }, []);
 
   const revenueCatValue = useRevenueCatController(session?.user?.id ?? null, authReady);
@@ -6393,6 +6703,8 @@ export default function App() {
       subscriptionTier: resolvedSubscriptionTier,
       revenueCatCustomerInfo: revenueCatValue?.customerInfo ?? null,
       revenueCatEntitlements: revenueCatValue?.activeEntitlementIds ?? [],
+      pendingPasswordReset,
+      completePasswordReset,
     }),
     [
       session,
@@ -6405,17 +6717,21 @@ export default function App() {
       resolvedSubscriptionTier,
       revenueCatValue?.customerInfo,
       revenueCatValue?.activeEntitlementIds,
+      pendingPasswordReset,
+      completePasswordReset,
     ]
   );
 
   if (!marcellusLoaded || !loraLoaded || !authReady) return null;
 
+  const shouldShowAuthStack = !session || pendingPasswordReset;
+
   return (
     <AuthContext.Provider value={authValue}>
       <RevenueCatContext.Provider value={revenueCatValue || defaultRevenueCatState}>
         <JournalProvider>
-          <NavigationContainer theme={navTheme}>
-            {session ? <MainTabs /> : <AuthStackScreen />}
+          <NavigationContainer theme={navTheme} ref={navigationRef}>
+            {shouldShowAuthStack ? <AuthStackScreen /> : <MainTabs />}
           </NavigationContainer>
         </JournalProvider>
       </RevenueCatContext.Provider>
