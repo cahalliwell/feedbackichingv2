@@ -638,11 +638,10 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 
 // 🔗 Hexagram Google Sheet source
-const DEFAULT_HEXAGRAM_SHEET_URL =
-  "https://opensheet.elk.sh/1IYLzxYHomdVern98otj9Ff4C31qiJwK2S65tHMIJIC0/Sheet1";
-
 const HEXAGRAM_SHEET_URL =
-  readEnv("EXPO_PUBLIC_HEXAGRAM_SHEET_URL") || readEnv("HEXAGRAM_SHEET_URL") || null;
+  readEnv("EXPO_PUBLIC_HEXAGRAM_SHEET_URL") ||
+  readEnv("HEXAGRAM_SHEET_URL") ||
+  null;
 const HEXAGRAM_SHEET_ID =
   readEnv("EXPO_PUBLIC_HEXAGRAM_SHEET_ID") || readEnv("HEXAGRAM_SHEET_ID") || null;
 const HEXAGRAM_SHEET_TAB =
@@ -650,9 +649,8 @@ const HEXAGRAM_SHEET_TAB =
 
 const resolveHexagramSheetUrl = () => {
   if (HEXAGRAM_SHEET_URL) return HEXAGRAM_SHEET_URL;
-  if (HEXAGRAM_SHEET_ID && HEXAGRAM_SHEET_TAB)
-    return `https://opensheet.elk.sh/${HEXAGRAM_SHEET_ID}/${HEXAGRAM_SHEET_TAB}`;
-  return DEFAULT_HEXAGRAM_SHEET_URL;
+  if (HEXAGRAM_SHEET_ID) return `https://opensheet.elk.sh/${HEXAGRAM_SHEET_ID}/${HEXAGRAM_SHEET_TAB}`;
+  return null;
 };
 
 // 📜 Hexagram data helpers
