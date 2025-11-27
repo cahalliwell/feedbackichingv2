@@ -4122,11 +4122,24 @@ function CastScreen({ route, navigation }) {
   const startPremiumPurchase = usePremiumPurchaseFlow();
   const question = route.params?.question ?? null;
   const [all, setAll] = useState([]);
+  const [loadingHexagrams, setLoadingHexagrams] = useState(true);
   const [lines, setLines] = useState([]);
   const [isDone, setIsDone] = useState(false);
 
   useEffect(() => {
-    loadHexagrams().then(setAll);
+    let active = true;
+    setLoadingHexagrams(true);
+    loadHexagrams()
+      .then((rows) => {
+        if (!active) return;
+        setAll(rows || []);
+      })
+      .finally(() => {
+        if (active) setLoadingHexagrams(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleCastLine = () => {
@@ -4151,6 +4164,8 @@ function CastScreen({ route, navigation }) {
     () => (lines.length === 6 ? chooseByLines(resultingLines, all) : null),
     [resultingLines, all]
   );
+
+  const readyForResults = isDone && all.length > 0 && !loadingHexagrams;
 
   return (
     <GradientBackground>
@@ -4232,15 +4247,17 @@ function CastScreen({ route, navigation }) {
           {isDone ? (
             <GoldButton
               kind="secondary"
-              onPress={() =>
+              disabled={!readyForResults}
+              onPress={() => {
+                if (!readyForResults) return;
                 navigation.replace("Results", {
                   question,
                   primary: primaryHex,
                   resulting: resultingHex,
                   primaryLines: lines,
                   resultingLines,
-                })
-              }
+                });
+              }}
               icon={<Ionicons name="book-outline" size={18} color={palette.gold} />}
             >
               View Results
@@ -4260,11 +4277,24 @@ function ManualCastingScreen({ route, navigation }) {
   const question = route.params?.question ?? null;
   const [inputs, setInputs] = useState(["", "", "", "", "", ""]);
   const [hexagrams, setHexagrams] = useState([]);
+  const [loadingHexagrams, setLoadingHexagrams] = useState(true);
   const inputRefs = useRef([]);
 
   useEffect(() => {
     if (!premiumMember) return;
-    loadHexagrams().then(setHexagrams);
+    let active = true;
+    setLoadingHexagrams(true);
+    loadHexagrams()
+      .then((rows) => {
+        if (!active) return;
+        setHexagrams(rows || []);
+      })
+      .finally(() => {
+        if (active) setLoadingHexagrams(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [premiumMember]);
 
   if (!premiumMember) {
@@ -4318,7 +4348,7 @@ function ManualCastingScreen({ route, navigation }) {
   };
 
   const handleViewResult = () => {
-    if (!isComplete) return;
+    if (!isComplete || loadingHexagrams || !hexagrams.length) return;
     const resulting = flipLinesForResult(manualLines);
     const primaryHex = chooseByLines(manualLines, hexagrams);
     const resultingHex = chooseByLines(resulting, hexagrams);
