@@ -619,9 +619,16 @@ function useRevenueCatController(appUserID, authReady) {
 
 
 // 🔗 Supabase client
-export const SUPABASE_URL = "https://cvowwctcpepbctokktpn.supabase.co";
-export const SUPABASE_ANON_KEY =
+const DEFAULT_SUPABASE_URL = "https://cvowwctcpepbctokktpn.supabase.co";
+const DEFAULT_SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2b3d3Y3RjcGVwYmN0b2trdHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA3MTYyMjIsImV4cCI6MjA3NjI5MjIyMn0.eOJ1Y7c5aBtf64sEXnO1G7z3YQAOhJNUqPfuLcjdNFw";
+
+export const SUPABASE_URL =
+  readEnv("EXPO_PUBLIC_SUPABASE_URL") || readEnv("SUPABASE_URL") || DEFAULT_SUPABASE_URL;
+export const SUPABASE_ANON_KEY =
+  readEnv("EXPO_PUBLIC_SUPABASE_ANON_KEY") ||
+  readEnv("SUPABASE_ANON_KEY") ||
+  DEFAULT_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
@@ -629,6 +636,22 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     autoRefreshToken: true,
   },
 });
+
+// 🔗 Hexagram Google Sheet source
+const HEXAGRAM_SHEET_URL =
+  readEnv("EXPO_PUBLIC_HEXAGRAM_SHEET_URL") ||
+  readEnv("HEXAGRAM_SHEET_URL") ||
+  null;
+const HEXAGRAM_SHEET_ID =
+  readEnv("EXPO_PUBLIC_HEXAGRAM_SHEET_ID") || readEnv("HEXAGRAM_SHEET_ID") || null;
+const HEXAGRAM_SHEET_TAB =
+  readEnv("EXPO_PUBLIC_HEXAGRAM_SHEET_TAB") || readEnv("HEXAGRAM_SHEET_TAB") || "Hexagrams";
+
+const resolveHexagramSheetUrl = () => {
+  if (HEXAGRAM_SHEET_URL) return HEXAGRAM_SHEET_URL;
+  if (HEXAGRAM_SHEET_ID) return `https://opensheet.elk.sh/${HEXAGRAM_SHEET_ID}/${HEXAGRAM_SHEET_TAB}`;
+  return null;
+};
 
 // 📜 Hexagram data helpers
 const clean = (value) => (value == null ? "" : String(value).trim());
@@ -695,7 +718,31 @@ export const normalizeHexagramRow = (row) => {
   };
 };
 
+async function fetchHexagramsFromSheet() {
+  const sheetUrl = resolveHexagramSheetUrl();
+  if (!sheetUrl) return [];
+
+  const response = await fetch(sheetUrl);
+  if (!response.ok) {
+    throw new Error(`Sheet request failed: ${response.status}`);
+  }
+  const rows = await response.json();
+  return (rows || [])
+    .map(normalizeHexagramRow)
+    .filter((x) => x && x.name)
+    .sort((a, b) => (a.number ?? 999) - (b.number ?? 999));
+}
+
 export async function loadHexagrams() {
+  try {
+    const sheetHexagrams = await fetchHexagramsFromSheet();
+    if (sheetHexagrams.length) {
+      return sheetHexagrams;
+    }
+  } catch (sheetError) {
+    console.log("Hexagram sheet fetch error:", sheetError?.message || sheetError);
+  }
+
   try {
     const { data, error } = await supabase.from("Hexagrams").select("*");
 
