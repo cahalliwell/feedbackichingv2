@@ -4543,7 +4543,96 @@ function ResultsScreen({ navigation, route }) {
   const [tab, setTab] = useState("Primary");
   const [show, setShow] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [hexagrams, setHexagrams] = useState([]);
+  const [loadingHex, setLoadingHex] = useState(true);
   const { addEntry } = useJournal();
+
+  useEffect(() => {
+    let active = true;
+    setLoadingHex(true);
+    loadHexagrams()
+      .then((rows) => {
+        if (!active) return;
+        setHexagrams(rows || []);
+      })
+      .catch((error) =>
+        console.log("Results hexagram load error:", error?.message || error)
+      )
+      .finally(() => {
+        if (active) setLoadingHex(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const stablePrimaryLines = useMemo(
+    () => (Array.isArray(primaryLines) ? primaryLines : []),
+    [primaryLines]
+  );
+
+  const stableResultingLines = useMemo(() => {
+    if (Array.isArray(resultingLines) && resultingLines.length === 6) {
+      return resultingLines;
+    }
+    if (stablePrimaryLines.length === 6) {
+      return flipLinesForResult(stablePrimaryLines);
+    }
+    return Array.isArray(resultingLines) ? resultingLines : [];
+  }, [resultingLines, stablePrimaryLines]);
+
+  const mergeHexagram = useCallback(
+    (hex, fallback) => {
+      if (!hex && !fallback) return null;
+      const target = hex || fallback;
+      const byNumber =
+        target?.number != null
+          ? hexagrams.find((item) => item.number === target.number)
+          : null;
+      if (byNumber) {
+        return { ...byNumber, ...target };
+      }
+      const derivedLines = target?.linesBinary
+        ? target.linesBinary.replace(/\s+/g, "")
+        : null;
+      if (derivedLines) {
+        const byLines = hexagrams.find(
+          (item) => (item.linesBinary || "").replace(/\s+/g, "") === derivedLines
+        );
+        if (byLines) {
+          return { ...byLines, ...target };
+        }
+      }
+      return target || null;
+    },
+    [hexagrams]
+  );
+
+  const primaryFromLines = useMemo(
+    () =>
+      stablePrimaryLines.length === 6
+        ? chooseByLines(stablePrimaryLines, hexagrams)
+        : null,
+    [stablePrimaryLines, hexagrams]
+  );
+
+  const resultingFromLines = useMemo(
+    () =>
+      stableResultingLines.length === 6
+        ? chooseByLines(stableResultingLines, hexagrams)
+        : null,
+    [stableResultingLines, hexagrams]
+  );
+
+  const resolvedPrimary = useMemo(
+    () => mergeHexagram(primary, primaryFromLines),
+    [mergeHexagram, primary, primaryFromLines]
+  );
+
+  const resolvedResulting = useMemo(
+    () => mergeHexagram(resulting, resultingFromLines),
+    [mergeHexagram, resulting, resultingFromLines]
+  );
 
   const openReading = (hex, lines, variant) => {
     if (!hex) return;
@@ -4554,16 +4643,16 @@ function ResultsScreen({ navigation, route }) {
   };
 
   const handleJournal = async () => {
-    if (!primary) {
+    if (!resolvedPrimary) {
       Alert.alert("Still casting", "Complete the casting before journaling.");
       return;
     }
     const newId = await addEntry({
       question,
-      primary,
-      resulting,
-      primaryLines,
-      resultingLines,
+      primary: resolvedPrimary,
+      resulting: resolvedResulting,
+      primaryLines: stablePrimaryLines,
+      resultingLines: stableResultingLines,
     });
     if (!newId) {
       return;
@@ -4577,6 +4666,8 @@ function ResultsScreen({ navigation, route }) {
       });
     }
   };
+
+  const isBusy = loadingHex && !hexagrams.length && !primary && !resulting;
 
   return (
     <GradientBackground>
@@ -4617,17 +4708,28 @@ function ResultsScreen({ navigation, route }) {
 
           {tab === "Primary" ? (
             <HexagramCard
-              item={primary}
-              onPress={() => openReading(primary, primaryLines, "primary")}
+              item={resolvedPrimary}
+              onPress={() => openReading(resolvedPrimary, stablePrimaryLines, "primary")}
             />
           ) : (
             <HexagramCard
-              item={resulting}
-              onPress={() => openReading(resulting, resultingLines, "resulting")}
+              item={resolvedResulting}
+              onPress={() =>
+                openReading(resolvedResulting, stableResultingLines, "resulting")
+              }
             />
           )}
 
-          {primary ? (
+          {isBusy ? (
+            <SectionCard>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <ActivityIndicator color={palette.goldDeep} />
+                <Text style={{ marginLeft: 10, color: palette.inkMuted, fontFamily: fonts.body }}>
+                  Preparing your reading…
+                </Text>
+              </View>
+            </SectionCard>
+          ) : resolvedPrimary ? (
             <GoldButton
               full
               onPress={handleJournal}
